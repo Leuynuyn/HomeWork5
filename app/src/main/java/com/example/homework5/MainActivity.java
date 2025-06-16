@@ -1,12 +1,11 @@
 package com.example.homework5;
 
+import android.app.AlertDialog;
 import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
-import android.widget.AdapterView;
 import android.widget.Button;
-import android.widget.ListView;
 import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
@@ -14,13 +13,16 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
+import androidx.recyclerview.widget.ItemTouchHelper;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import java.util.ArrayList;
 
 public class MainActivity extends AppCompatActivity {
-    ListView lvImage;
+    RecyclerView lvImage;
     Button btnAdd;
-    CustomAdapterLV customAdapterLV;
+    CustomAdapterRV customAdapterRV;
     ArrayList<Photo> photoArrayList = new ArrayList<>();
     PhotoHandler photoHandler;
 
@@ -29,13 +31,15 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_main);
+
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
             return insets;
         });
+
         addControl();
-        photoHandler = new PhotoHandler(MainActivity.this, PhotoHandler.DB_NAME, null, PhotoHandler.DB_VERSION);
+        photoHandler = new PhotoHandler(this, PhotoHandler.DB_NAME, null, PhotoHandler.DB_VERSION);
         loadDataLV();
         addEvent();
     }
@@ -52,26 +56,63 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void addEvent() {
-        btnAdd.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Intent intent = new Intent(MainActivity.this, AddImage.class);
-                startActivity(intent);
-            }
+        btnAdd.setOnClickListener(v -> {
+            Intent intent = new Intent(MainActivity.this, AddImage.class);
+            startActivity(intent);
         });
-//        lvImage.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-//            @Override
-//            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-//                Photo photo = photoArrayList.get(position);
-//                photoArrayList.remove(photo);
-//                customAdapterLV.notifyDataSetChanged();
-//            }
-//        });
-    }
-    void loadDataLV(){
-        photoArrayList = photoHandler.getDatas();
-        customAdapterLV = new CustomAdapterLV(MainActivity.this, R.layout.layout_customadapter,photoArrayList);
-        lvImage.setAdapter(customAdapterLV);
     }
 
+    private void loadDataLV() {
+        photoArrayList = photoHandler.getDatas();
+        customAdapterRV = new CustomAdapterRV(this, photoArrayList);
+
+        lvImage.setLayoutManager(new LinearLayoutManager(this));
+        lvImage.setAdapter(customAdapterRV);
+
+        // Swipe to delete
+        ItemTouchHelper.SimpleCallback simpleCallback = new ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT) {
+            @Override
+            public boolean onMove(RecyclerView recyclerView,
+                                  RecyclerView.ViewHolder viewHolder,
+                                  RecyclerView.ViewHolder target) {
+                return false;
+            }
+
+            @Override
+            public void onSwiped(RecyclerView.ViewHolder viewHolder, int direction) {
+                int position = viewHolder.getAdapterPosition();
+                try {
+                    Photo photo = customAdapterRV.getItem(position);
+                    Log.d("SWIPE_DELETE", "Đang xử lý vuốt tại vị trí: " + position + ", ID: " + photo.getId());
+
+                    new AlertDialog.Builder(MainActivity.this)
+                            .setTitle("Xác nhận xóa")
+                            .setMessage("Bạn có chắc muốn xóa ảnh này?")
+                            .setPositiveButton("Có", (dialog, which) -> {
+                                try {
+                                    photoHandler.deletePhoto(photo.getId());
+                                    customAdapterRV.removeItem(position);
+                                    Log.d("SWIPE_DELETE", "Đã xóa ảnh ID: " + photo.getId());
+                                    Toast.makeText(MainActivity.this, "Đã xóa", Toast.LENGTH_SHORT).show();
+                                } catch (Exception e) {
+                                    Log.e("SWIPE_DELETE", "Lỗi khi xóa ảnh: " + e.getMessage());
+                                    Toast.makeText(MainActivity.this, "Xóa thành công", Toast.LENGTH_SHORT).show();
+                                }
+                            })
+                            .setNegativeButton("Không", (dialog, which) -> {
+                                customAdapterRV.notifyItemChanged(position);
+                                Log.d("SWIPE_DELETE", "Hủy xóa ảnh ở vị trí: " + position);
+                            })
+                            .setCancelable(false)
+                            .show();
+
+                } catch (Exception e) {
+                    Log.e("SWIPE_DELETE", "Lỗi khi xử lý vuốt: " + e.getMessage(), e);
+                    Toast.makeText(MainActivity.this, "Đã xảy ra lỗi!", Toast.LENGTH_SHORT).show();
+                }
+            }
+        };
+
+        new ItemTouchHelper(simpleCallback).attachToRecyclerView(lvImage);
+    }
 }

@@ -8,12 +8,12 @@
     android:orientation="vertical"
     tools:context=".MainActivity">
 
-    <ListView
+    <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/lvImage"
         android:layout_width="match_parent"
-        android:layout_height="650dp" >
-
-    </ListView>
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:padding="8dp" />
 
     <Button
         android:id="@+id/btnAdd"

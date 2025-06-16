@@ -64,10 +64,9 @@
         }
 
         public void deletePhoto(String id) {
-            SQLiteDatabase sqLiteDatabase = getWritableDatabase();
-            String deleteSQL = "DELETE FROM " + TABLE_NAME + " WHERE " + this.id + " = ?";
-            sqLiteDatabase.execSQL(deleteSQL, new Object[]{id});
-            sqLiteDatabase.close();
+            SQLiteDatabase db = getWritableDatabase();
+            db.delete("Photo", "id = ?", new String[]{String.valueOf(id)});
+            db.close();
         }
 
 
